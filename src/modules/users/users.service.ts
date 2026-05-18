@@ -5,11 +5,14 @@ import * as bcrypt from 'bcrypt';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMapper } from './mappers/user.mapper';
 import {
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '../../common/exceptions/base.exception';
 import { UserRole } from '../../common/enums/user-role.enum';
 
@@ -67,11 +70,12 @@ export class UsersService {
       }
     }
 
+    const updates: Partial<UserEntity> = { ...dto };
     if (dto.password) {
-      dto.password = await bcrypt.hash(dto.password, 10);
+      updates.password = await bcrypt.hash(dto.password, 10);
     }
 
-    Object.assign(user, dto);
+    Object.assign(user, updates);
     const saved = await this.userRepository.save(user);
     return UserMapper.toResponse(saved);
   }
@@ -82,6 +86,33 @@ export class UsersService {
     await this.userRepository.softDelete(id);
   }
 
+  // ─── Me ────────────────────────────────────────────────────
+
+  async getMe(id: string): Promise<UserResponseDto> {
+    return this.findOne(id);
+  }
+
+  async updateMe(id: string, dto: UpdateProfileDto): Promise<UserResponseDto> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User');
+    Object.assign(user, dto);
+    const saved = await this.userRepository.save(user);
+    return UserMapper.toResponse(saved);
+  }
+
+  async changePassword(id: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.findByIdWithPassword(id);
+    if (!user) throw new NotFoundException('User');
+
+    const match = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!match) throw new UnauthorizedException('Current password is incorrect');
+
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepository.save(user);
+  }
+
+  // ─── Auth helpers ──────────────────────────────────────────
+
   async findByUsernameWithPassword(username: string): Promise<UserEntity | null> {
     return this.userRepository
       .createQueryBuilder('user')
@@ -90,6 +121,35 @@ export class UsersService {
       .andWhere('user.deletedAt IS NULL')
       .getOne();
   }
+
+  async findByIdWithPassword(id: string): Promise<UserEntity | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+  }
+
+  async findByIdWithRefreshToken(id: string): Promise<UserEntity | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.refreshTokenHash')
+      .where('user.id = :id', { id })
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+  }
+
+  async setRefreshToken(userId: string, rawToken: string): Promise<void> {
+    const hash = await bcrypt.hash(rawToken, 10);
+    await this.userRepository.update(userId, { refreshTokenHash: hash });
+  }
+
+  async clearRefreshToken(userId: string): Promise<void> {
+    await this.userRepository.update(userId, { refreshTokenHash: null });
+  }
+
+  // ─── Seed ──────────────────────────────────────────────────
 
   async hasAdmin(): Promise<boolean> {
     const count = await this.userRepository.count({

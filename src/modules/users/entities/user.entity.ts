@@ -18,4 +18,7 @@ export class UserEntity extends BaseEntity {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  refreshTokenHash: string | null;
 }

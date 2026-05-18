@@ -13,6 +13,8 @@ export class TermMapper {
     dto.tags = term.tags;
     dto.isAbbreviation = term.isAbbreviation;
     dto.isActive = term.isActive;
+    dto.viewCount = term.viewCount;
+    dto.slug = term.slug;
     dto.createdAt = term.createdAt;
     dto.updatedAt = term.updatedAt;
     return dto;

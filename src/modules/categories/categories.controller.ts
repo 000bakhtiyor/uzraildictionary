@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { JwtPayload } from '../../common/types/jwt-payload.type';
 import { CategoriesService } from './categories.service';
@@ -30,7 +31,6 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryResponseDto } from './dto/category-response.dto';
 
 @ApiTags('Categories')
-@ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('categories')
 export class CategoriesController {
@@ -38,6 +38,7 @@ export class CategoriesController {
 
   @Post()
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Create category (ADMIN only)' })
   @ApiResponse({ status: 201, type: CategoryResponseDto })
   create(@Body() dto: CreateCategoryDto): Promise<CategoryResponseDto> {
@@ -45,30 +46,33 @@ export class CategoriesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all categories' })
-  @ApiQuery({ name: 'all', required: false, type: Boolean })
+  @Public()
+  @ApiOperation({ summary: 'Get all active categories (public)' })
+  @ApiQuery({ name: 'all', required: false, type: Boolean, description: 'ADMIN only: include inactive' })
   @ApiResponse({ status: 200, type: [CategoryResponseDto] })
   findAll(
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: JwtPayload | undefined,
     @Query('all') all?: string,
   ): Promise<CategoryResponseDto[]> {
-    const showAll = user.role === UserRole.ADMIN && all === 'true';
+    const showAll = user?.role === UserRole.ADMIN && all === 'true';
     return this.categoriesService.findAll(!showAll);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get category by id' })
+  @Public()
+  @ApiOperation({ summary: 'Get category by id (public)' })
   @ApiResponse({ status: 200, type: CategoryResponseDto })
   findOne(
     @Param('id') id: string,
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: JwtPayload | undefined,
   ): Promise<CategoryResponseDto> {
-    const onlyActive = user.role !== UserRole.ADMIN;
+    const onlyActive = user?.role !== UserRole.ADMIN;
     return this.categoriesService.findOne(id, onlyActive);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Update category (ADMIN only)' })
   @ApiResponse({ status: 200, type: CategoryResponseDto })
   update(
@@ -80,6 +84,7 @@ export class CategoriesController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft delete category (ADMIN only)' })
   @ApiResponse({ status: 204 })

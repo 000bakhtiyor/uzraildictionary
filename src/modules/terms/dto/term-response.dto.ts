@@ -28,6 +28,12 @@ export class TermResponseDto {
   isActive: boolean;
 
   @ApiProperty()
+  viewCount: number;
+
+  @ApiPropertyOptional()
+  slug: string | null;
+
+  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()

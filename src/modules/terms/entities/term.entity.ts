@@ -26,4 +26,10 @@ export class TermEntity extends BaseEntity {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  viewCount: number;
+
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  slug: string | null;
 }

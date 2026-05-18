@@ -46,4 +46,9 @@ export class CreateTermDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: 'electric-locomotive', description: 'Auto-generated from term.en if omitted' })
+  @IsOptional()
+  @IsString()
+  slug?: string;
 }

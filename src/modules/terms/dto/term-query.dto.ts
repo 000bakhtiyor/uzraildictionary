@@ -1,6 +1,17 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 
 export class TermQueryDto extends PaginationQueryDto {
@@ -8,20 +19,39 @@ export class TermQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @ApiPropertyOptional({ example: 'diesel', description: 'Filter by tag' })
+  @IsOptional()
+  @IsString()
+  tag?: string;
 }
 
+export const SEARCHABLE_LANGS = ['uz', 'ru', 'en', 'kk', 'uzCyrl'] as const;
+export type SearchLang = (typeof SEARCHABLE_LANGS)[number];
+
 export class TermSearchQueryDto {
-  @ApiPropertyOptional({ description: 'Search query (required)' })
+  @ApiProperty({ description: 'Search query (min 1 character)', example: 'lokomotiv' })
   @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
   q: string;
 
   @ApiPropertyOptional({
-    enum: ['uz', 'ru', 'en', 'kk', 'uzCyrl'],
-    description: 'Language to search in. If omitted, searches all languages.',
+    enum: SEARCHABLE_LANGS,
+    description: 'Language to search in. Omit to search all languages.',
   })
   @IsOptional()
-  @IsIn(['uz', 'ru', 'en', 'kk', 'uzCyrl'])
-  lang?: string;
+  @IsIn(SEARCHABLE_LANGS)
+  lang?: SearchLang;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description: 'Enable fuzzy search (requires pg_trgm extension)',
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  fuzzy?: boolean;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
