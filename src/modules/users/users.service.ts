@@ -173,4 +173,24 @@ export class UsersService {
     });
     await this.userRepository.save(admin);
   }
+
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
+
+  async createFromOtp(data: {
+    email: string;
+    username: string;
+    passwordHash: string;
+  }): Promise<UserEntity> {
+    const user = this.userRepository.create({
+      email: data.email,
+      username: data.username,
+      password: data.passwordHash,
+      fullName: data.username,
+      role: UserRole.USER,
+      isActive: true,
+    });
+    return this.userRepository.save(user);
+  }
 }

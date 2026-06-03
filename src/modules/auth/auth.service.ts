@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { randomBytes, randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../email/email.service';
+import { OtpEntity } from './entities/otp.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { UnauthorizedException } from '../../common/exceptions/base.exception';
+import {
+  UnauthorizedException,
+  ConflictException,
+} from '../../common/exceptions/base.exception';
 import { JwtPayload } from '../../common/types/jwt-payload.type';
 
 @Injectable()
@@ -15,6 +24,9 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
+    @InjectRepository(OtpEntity)
+    private readonly otpRepository: Repository<OtpEntity>,
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
@@ -29,19 +41,74 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.generateRefreshToken(user);
+    return this.buildTokenResponse(user);
+  }
 
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        username: user.username,
-        role: user.role,
-      },
-    };
+  async register(dto: RegisterDto): Promise<{ message: string }> {
+    if (dto.password !== dto.confirmPassword) {
+      throw new ConflictException('Passwords do not match');
+    }
+
+    const [emailTaken, usernameTaken] = await Promise.all([
+      this.usersService.findByEmail(dto.email),
+      this.usersService.findByUsernameWithPassword(dto.username),
+    ]);
+
+    if (emailTaken) throw new ConflictException('Email already registered');
+    if (usernameTaken) throw new ConflictException(`Username "${dto.username}" is already taken`);
+
+    // Invalidate any existing pending OTP for this email
+    await this.otpRepository.update(
+      { email: dto.email, used: false },
+      { used: true },
+    );
+
+    const code = randomInt(100000, 999999).toString();
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+    await this.otpRepository.save(
+      this.otpRepository.create({
+        email: dto.email,
+        username: dto.username,
+        passwordHash,
+        code,
+        expiresAt,
+      }),
+    );
+
+    await this.emailService.sendOtp(dto.email, code);
+
+    return { message: `OTP sent to ${dto.email}` };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto): Promise<LoginResponseDto> {
+    const otp = await this.otpRepository.findOne({
+      where: { email: dto.email, used: false },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otp || otp.used || otp.expiresAt < new Date()) {
+      throw new UnauthorizedException('OTP is invalid or expired');
+    }
+
+    if (otp.code !== dto.code) {
+      throw new UnauthorizedException('Incorrect OTP code');
+    }
+
+    await this.otpRepository.update(otp.id, { used: true });
+
+    // Double-check email/username not registered between register and verify
+    const existing = await this.usersService.findByEmail(dto.email);
+    if (existing) throw new ConflictException('Email already registered');
+
+    const user = await this.usersService.createFromOtp({
+      email: otp.email,
+      username: otp.username,
+      passwordHash: otp.passwordHash,
+    });
+
+    return this.buildTokenResponse(user);
   }
 
   async refresh(dto: RefreshTokenDto): Promise<{ accessToken: string; refreshToken: string }> {
@@ -57,17 +124,22 @@ export class AuthService {
 
   // ─── Private ───────────────────────────────────────────────
 
-  private signAccessToken(user: UserEntity): string {
-    const payload: JwtPayload = {
-      sub: user.id,
-      username: user.username,
-      role: user.role,
+  private async buildTokenResponse(user: UserEntity): Promise<LoginResponseDto> {
+    const accessToken = this.signAccessToken(user);
+    const refreshToken = await this.generateRefreshToken(user);
+    return {
+      accessToken,
+      refreshToken,
+      user: { id: user.id, fullName: user.fullName, username: user.username, role: user.role },
     };
+  }
+
+  private signAccessToken(user: UserEntity): string {
+    const payload: JwtPayload = { sub: user.id, username: user.username, role: user.role };
     return this.jwtService.sign(payload);
   }
 
   private async generateRefreshToken(user: UserEntity): Promise<string> {
-    // Format: base64url(userId.randomHex) — userId lets us look up the user on refresh
     const raw = `${user.id}.${randomBytes(40).toString('hex')}`;
     const token = Buffer.from(raw).toString('base64url');
     await this.usersService.setRefreshToken(user.id, raw);

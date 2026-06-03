@@ -7,6 +7,7 @@ export class UserMapper {
     dto.id = user.id;
     dto.fullName = user.fullName;
     dto.username = user.username;
+    dto.email = user.email;
     dto.role = user.role;
     dto.isActive = user.isActive;
     dto.createdAt = user.createdAt;
