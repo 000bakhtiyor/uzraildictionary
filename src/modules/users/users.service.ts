@@ -193,4 +193,8 @@ export class UsersService {
     });
     return this.userRepository.save(user);
   }
+
+  async resetPassword(userId: string, newPasswordHash: string): Promise<void> {
+    await this.userRepository.update(userId, { password: newPasswordHash });
+  }
 }

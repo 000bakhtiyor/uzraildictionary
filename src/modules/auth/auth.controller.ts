@@ -8,6 +8,9 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ForgotVerifyDto } from './dto/forgot-verify.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
@@ -63,5 +66,37 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout — invalidates refresh token' })
   logout(@CurrentUser() user: JwtPayload): Promise<void> {
     return this.authService.logout(user.sub);
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 3600000, limit: 3 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset — sends 6-digit OTP to email' })
+  @ApiResponse({ status: 200, schema: { properties: { message: { type: 'string' } } } })
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 900000, limit: 10 } })
+  @Post('forgot-verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify password reset OTP — returns short-lived resetToken (15 min)' })
+  @ApiResponse({ status: 200, schema: { properties: { resetToken: { type: 'string' } } } })
+  forgotVerify(@Body() dto: ForgotVerifyDto): Promise<{ resetToken: string }> {
+    return this.authService.forgotVerify(dto);
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 900000, limit: 5 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Reset password using resetToken from forgot-verify' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    return this.authService.resetPassword(dto);
   }
 }

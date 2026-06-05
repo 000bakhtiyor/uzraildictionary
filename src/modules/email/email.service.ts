@@ -20,14 +20,24 @@ export class EmailService {
   }
 
   async sendOtp(email: string, code: string): Promise<void> {
+    await this.sendCodeEmail(email, 'UzRail Dictionary — Email tasdiqlash kodi', 'Email tasdiqlash', code);
+    this.logger.log(`Registration OTP sent to ${email}`);
+  }
+
+  async sendPasswordResetOtp(email: string, code: string): Promise<void> {
+    await this.sendCodeEmail(email, 'UzRail Dictionary — Parol tiklash kodi', 'Parol tiklash', code);
+    this.logger.log(`Password reset OTP sent to ${email}`);
+  }
+
+  private async sendCodeEmail(email: string, subject: string, title: string, code: string): Promise<void> {
     const from = this.config.get<string>('app.smtpFrom');
     await this.transporter.sendMail({
       from,
       to: email,
-      subject: 'UzRail Dictionary — Email tasdiqlash kodi',
+      subject,
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:auto">
-          <h2>Email tasdiqlash</h2>
+          <h2>${title}</h2>
           <p>Tasdiqlash kodingiz:</p>
           <div style="font-size:36px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f5f5f5;border-radius:8px;text-align:center">
             ${code}
@@ -36,6 +46,5 @@ export class EmailService {
         </div>
       `,
     });
-    this.logger.log(`OTP sent to ${email}`);
   }
 }
