@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -27,7 +28,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { QueryUsersDto } from './dto/query-users.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -78,10 +81,10 @@ export class UsersController {
 
   @Get()
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get all users (ADMIN only)' })
-  @ApiResponse({ status: 200, type: [UserResponseDto] })
-  findAll(): Promise<UserResponseDto[]> {
-    return this.usersService.findAll();
+  @ApiOperation({ summary: 'Get all users with filters (ADMIN only)' })
+  @ApiResponse({ status: 200 })
+  findAll(@Query() query: QueryUsersDto): Promise<PaginatedResponseDto<UserResponseDto>> {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')

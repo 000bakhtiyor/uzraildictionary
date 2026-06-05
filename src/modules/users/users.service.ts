@@ -7,8 +7,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { QueryUsersDto } from './dto/query-users.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMapper } from './mappers/user.mapper';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { paginate, getSkip } from '../../common/utils/pagination.util';
 import {
   ConflictException,
   NotFoundException,
@@ -45,9 +48,31 @@ export class UsersService {
     return UserMapper.toResponse(saved);
   }
 
-  async findAll(): Promise<UserResponseDto[]> {
-    const users = await this.userRepository.find();
-    return UserMapper.toResponseList(users);
+  async findAll(query: QueryUsersDto): Promise<PaginatedResponseDto<UserResponseDto>> {
+    const { page, limit, search, role, isActive } = query;
+    const skip = getSkip(page, limit);
+
+    const qb = this.userRepository.createQueryBuilder('user');
+
+    if (search) {
+      qb.andWhere(
+        '(user.fullName ILIKE :search OR user.username ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (role !== undefined) {
+      qb.andWhere('user.role = :role', { role });
+    }
+
+    if (isActive !== undefined) {
+      qb.andWhere('user.isActive = :isActive', { isActive });
+    }
+
+    qb.orderBy('user.createdAt', 'DESC').skip(skip).take(limit);
+
+    const [users, total] = await qb.getManyAndCount();
+    return paginate(UserMapper.toResponseList(users), total, page, limit);
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
