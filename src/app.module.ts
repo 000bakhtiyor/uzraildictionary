@@ -11,6 +11,7 @@ import { TermsModule } from './modules/terms/terms.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { HistoryModule } from './modules/history/history.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -36,6 +37,7 @@ import jwtConfig from './config/jwt.config';
     FavoritesModule,
     HistoryModule,
     AdminModule,
+    SuggestionsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
