@@ -222,7 +222,19 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<UserEntity | null> {
-    return this.userRepository.findOne({ where: { email } });
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email })
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+  }
+
+  async findByEmailIncludingDeleted(email: string): Promise<UserEntity | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email })
+      .withDeleted()
+      .getOne();
   }
 
   async createFromOtp(data: {
@@ -231,14 +243,21 @@ export class UsersService {
     passwordHash: string;
   }): Promise<UserEntity> {
     const user = this.userRepository.create({
-      email: data.email,
+      email: data.email.toLowerCase(),
       username: data.username,
       password: data.passwordHash,
       fullName: data.username,
       role: UserRole.USER,
       isActive: true,
     });
-    return this.userRepository.save(user);
+    try {
+      return await this.userRepository.save(user);
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new ConflictException('Email or username already registered');
+      }
+      throw err;
+    }
   }
 
   async resetPassword(userId: string, newPasswordHash: string): Promise<void> {

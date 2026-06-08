@@ -55,7 +55,7 @@ export class AuthService {
     }
 
     const [emailTaken, usernameTaken] = await Promise.all([
-      this.usersService.findByEmail(dto.email),
+      this.usersService.findByEmailIncludingDeleted(dto.email),
       this.usersService.findByUsernameWithPassword(dto.username),
     ]);
 
@@ -112,7 +112,7 @@ export class AuthService {
 
     // Double-check email + username not taken between register and verify
     const [emailTaken, usernameTaken] = await Promise.all([
-      this.usersService.findByEmail(otp.email),
+      this.usersService.findByEmailIncludingDeleted(otp.email),
       this.usersService.findByUsernameWithPassword(otp.username!),
     ]);
 
