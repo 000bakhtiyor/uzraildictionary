@@ -261,6 +261,9 @@ export class UsersService {
   }
 
   async resetPassword(userId: string, newPasswordHash: string): Promise<void> {
-    await this.userRepository.update(userId, { password: newPasswordHash });
+    await this.userRepository.update(userId, {
+      password: newPasswordHash,
+      refreshTokenHash: null,
+    });
   }
 }
