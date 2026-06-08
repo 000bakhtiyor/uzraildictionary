@@ -29,7 +29,6 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
     const usernameTaken = await this.userRepository.findOne({
       where: { username: dto.username },
-      withDeleted: true,
     });
     if (usernameTaken) {
       throw new ConflictException(`Username "${dto.username}" is already taken`);
@@ -92,10 +91,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('User');
 
     if (dto.username && dto.username !== user.username) {
-      const taken = await this.userRepository.findOne({
-        where: { username: dto.username },
-        withDeleted: true,
-      });
+      const taken = await this.userRepository.findOne({ where: { username: dto.username } });
       if (taken) throw new ConflictException(`Username "${dto.username}" is already taken`);
     }
 
@@ -117,6 +113,12 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User');
+    // Free unique fields so they can be reused after deletion
+    await this.userRepository.update(id, {
+      username: `${id}_deleted`,
+      email: null,
+      refreshTokenHash: null,
+    });
     await this.userRepository.softDelete(id);
   }
 

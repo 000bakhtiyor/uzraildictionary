@@ -22,14 +22,8 @@ export class CategoriesService {
   async create(dto: CreateCategoryDto): Promise<CategoryResponseDto> {
     const slug = generateSlug(dto.slug);
 
-    const existing = await this.categoryRepository.findOne({
-      where: { slug },
-      withDeleted: true,
-    });
-
-    if (existing) {
-      throw new ConflictException(`Slug "${slug}" is already taken`);
-    }
+    const existing = await this.categoryRepository.findOne({ where: { slug } });
+    if (existing) throw new ConflictException(`Slug "${slug}" is already taken`);
 
     const category = this.categoryRepository.create({
       ...dto,
@@ -61,10 +55,7 @@ export class CategoriesService {
     if (dto.slug) {
       const slug = generateSlug(dto.slug);
       if (slug !== category.slug) {
-        const taken = await this.categoryRepository.findOne({
-          where: { slug },
-          withDeleted: true,
-        });
+        const taken = await this.categoryRepository.findOne({ where: { slug } });
         if (taken) throw new ConflictException(`Slug "${slug}" is already taken`);
       }
       dto = { ...dto, slug };
@@ -78,6 +69,7 @@ export class CategoriesService {
   async remove(id: string): Promise<void> {
     const category = await this.categoryRepository.findOne({ where: { id } });
     if (!category) throw new NotFoundException('Category');
+    await this.categoryRepository.update(id, { slug: null });
     await this.categoryRepository.softDelete(id);
   }
 }

@@ -7,8 +7,8 @@ export class CategoryEntity extends BaseEntity {
   @Column({ type: 'jsonb' })
   name: LocalizedString;
 
-  @Column({ unique: true })
-  slug: string;
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  slug: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   description: LocalizedString | null;

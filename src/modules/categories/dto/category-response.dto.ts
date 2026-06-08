@@ -8,8 +8,8 @@ export class CategoryResponseDto {
   @ApiProperty()
   name: LocalizedString;
 
-  @ApiProperty()
-  slug: string;
+  @ApiPropertyOptional()
+  slug: string | null;
 
   @ApiPropertyOptional()
   description: LocalizedString | null;

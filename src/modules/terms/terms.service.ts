@@ -193,6 +193,7 @@ export class TermsService {
   async remove(id: string): Promise<void> {
     const term = await this.termRepository.findOne({ where: { id } });
     if (!term) throw new NotFoundException('Term');
+    await this.termRepository.update(id, { slug: null });
     await this.termRepository.softDelete(id);
   }
 
@@ -409,7 +410,7 @@ export class TermsService {
     const slug = generateSlug(raw);
     if (!slug) return null;
 
-    const existing = await this.termRepository.findOne({ where: { slug }, withDeleted: true });
+    const existing = await this.termRepository.findOne({ where: { slug } });
     if (existing) throw new ConflictException(`Slug "${slug}" is already taken`);
     return slug;
   }
