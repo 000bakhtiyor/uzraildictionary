@@ -147,6 +147,19 @@ export class UsersService {
       .getOne();
   }
 
+  async findByIdentifierWithPassword(identifier: string): Promise<UserEntity | null> {
+    const isEmail = identifier.includes('@');
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where(
+        isEmail ? 'user.email = :identifier' : 'user.username = :identifier',
+        { identifier },
+      )
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+  }
+
   async findByIdWithPassword(id: string): Promise<UserEntity | null> {
     return this.userRepository
       .createQueryBuilder('user')

@@ -35,7 +35,7 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
-    const user = await this.usersService.findByUsernameWithPassword(dto.username);
+    const user = await this.usersService.findByIdentifierWithPassword(dto.identifier);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
@@ -62,21 +62,21 @@ export class AuthService {
     if (emailTaken) throw new ConflictException('Email already registered');
     if (usernameTaken) throw new ConflictException(`Username "${dto.username}" is already taken`);
 
-    // Invalidate any existing pending OTP for this email
     await this.otpRepository.update(
-      { email: dto.email, used: false },
+      { email: dto.email, used: false, type: OtpType.REGISTRATION },
       { used: true },
     );
 
     const code = randomInt(100000, 999999).toString();
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await this.otpRepository.save(
       this.otpRepository.create({
         email: dto.email,
         username: dto.username,
         passwordHash,
+        type: OtpType.REGISTRATION,
         code,
         expiresAt,
       }),
@@ -89,11 +89,11 @@ export class AuthService {
 
   async verifyOtp(dto: VerifyOtpDto): Promise<LoginResponseDto> {
     const otp = await this.otpRepository.findOne({
-      where: { email: dto.email, used: false },
+      where: { email: dto.email, used: false, type: OtpType.REGISTRATION },
       order: { createdAt: 'DESC' },
     });
 
-    if (!otp || otp.used || otp.expiresAt < new Date()) {
+    if (!otp || otp.expiresAt < new Date()) {
       throw new UnauthorizedException('OTP is invalid or expired');
     }
 
@@ -101,11 +101,23 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect OTP code');
     }
 
-    await this.otpRepository.update(otp.id, { used: true });
+    // Atomic claim — prevents race condition where two concurrent requests both pass findOne
+    const claimed = await this.otpRepository.update(
+      { id: otp.id, used: false },
+      { used: true },
+    );
+    if (!claimed.affected) {
+      throw new UnauthorizedException('OTP is invalid or expired');
+    }
 
-    // Double-check email/username not registered between register and verify
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Email already registered');
+    // Double-check email + username not taken between register and verify
+    const [emailTaken, usernameTaken] = await Promise.all([
+      this.usersService.findByEmail(otp.email),
+      this.usersService.findByUsernameWithPassword(otp.username!),
+    ]);
+
+    if (emailTaken) throw new ConflictException('Email already registered');
+    if (usernameTaken) throw new ConflictException(`Username "${otp.username}" is already taken`);
 
     const user = await this.usersService.createFromOtp({
       email: otp.email,
@@ -171,7 +183,13 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect OTP code');
     }
 
-    await this.otpRepository.update(otp.id, { used: true });
+    const claimed = await this.otpRepository.update(
+      { id: otp.id, used: false },
+      { used: true },
+    );
+    if (!claimed.affected) {
+      throw new UnauthorizedException('OTP is invalid or expired');
+    }
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) throw new NotFoundException('User not found');
