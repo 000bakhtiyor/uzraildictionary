@@ -6,6 +6,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryResponseDto } from './dto/category-response.dto';
 import { CategoryMapper } from './mappers/category.mapper';
+import { generateSlug } from '../../common/utils/slug.util';
 import {
   ConflictException,
   NotFoundException,
@@ -19,17 +20,20 @@ export class CategoriesService {
   ) {}
 
   async create(dto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    const slug = generateSlug(dto.slug);
+
     const existing = await this.categoryRepository.findOne({
-      where: { slug: dto.slug },
+      where: { slug },
       withDeleted: true,
     });
 
     if (existing) {
-      throw new ConflictException(`Slug "${dto.slug}" is already taken`);
+      throw new ConflictException(`Slug "${slug}" is already taken`);
     }
 
     const category = this.categoryRepository.create({
       ...dto,
+      slug,
       isActive: dto.isActive ?? true,
     });
 
@@ -54,14 +58,16 @@ export class CategoriesService {
     const category = await this.categoryRepository.findOne({ where: { id } });
     if (!category) throw new NotFoundException('Category');
 
-    if (dto.slug && dto.slug !== category.slug) {
-      const taken = await this.categoryRepository.findOne({
-        where: { slug: dto.slug },
-        withDeleted: true,
-      });
-      if (taken) {
-        throw new ConflictException(`Slug "${dto.slug}" is already taken`);
+    if (dto.slug) {
+      const slug = generateSlug(dto.slug);
+      if (slug !== category.slug) {
+        const taken = await this.categoryRepository.findOne({
+          where: { slug },
+          withDeleted: true,
+        });
+        if (taken) throw new ConflictException(`Slug "${slug}" is already taken`);
       }
+      dto = { ...dto, slug };
     }
 
     Object.assign(category, dto);

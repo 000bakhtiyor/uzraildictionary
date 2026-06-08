@@ -14,6 +14,7 @@ import { TermRelationResponseDto } from './dto/term-relation-response.dto';
 import { AutocompleteResponseDto } from './dto/autocomplete-response.dto';
 import { TermMapper } from './mappers/term.mapper';
 import {
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '../../common/exceptions/base.exception';
@@ -87,6 +88,8 @@ export class TermsService {
     if (onlyActive) qb.andWhere('term.isActive = :isActive', { isActive: true });
     if (categoryId) qb.andWhere('term.categoryId = :categoryId', { categoryId });
     if (tag) qb.andWhere(':tag = ANY(term.tags)', { tag: tag.toLowerCase().trim() });
+
+    qb.orderBy('term.createdAt', 'DESC');
 
     const [terms, total] = await qb.getManyAndCount();
     return paginate(TermMapper.toResponseList(terms), total, page, limit);
@@ -418,7 +421,7 @@ function normalizeTags(tags?: string[]): string[] {
 
 function safeJsonbKey(lang: string): string {
   if (!(SEARCHABLE_LANGS as readonly string[]).includes(lang)) {
-    throw new Error(`Invalid lang key: ${lang}`);
+    throw new BadRequestException(`Invalid lang "${lang}". Allowed: ${SEARCHABLE_LANGS.join(', ')}`);
   }
   return lang;
 }

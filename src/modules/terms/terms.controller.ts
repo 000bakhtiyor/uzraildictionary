@@ -92,7 +92,8 @@ export class TermsController {
   @ApiOperation({ summary: 'Most viewed terms all-time (cached 5min)' })
   @ApiResponse({ status: 200, type: [TermResponseDto] })
   getPopular(@Query('limit') limit?: string): Promise<TermResponseDto[]> {
-    return this.termsService.getPopular(limit ? parseInt(limit, 10) : 10);
+    const n = limit ? parseInt(limit, 10) : 10;
+    return this.termsService.getPopular(isNaN(n) ? 10 : n);
   }
 
   @Get('trending')
@@ -103,10 +104,9 @@ export class TermsController {
     @Query('days') days?: string,
     @Query('limit') limit?: string,
   ): Promise<TermResponseDto[]> {
-    return this.termsService.getTrending(
-      days ? parseInt(days, 10) : 7,
-      limit ? parseInt(limit, 10) : 10,
-    );
+    const d = days ? parseInt(days, 10) : 7;
+    const n = limit ? parseInt(limit, 10) : 10;
+    return this.termsService.getTrending(isNaN(d) ? 7 : d, isNaN(n) ? 10 : n);
   }
 
   @Get('index')
