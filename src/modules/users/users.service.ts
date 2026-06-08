@@ -27,13 +27,17 @@ export class UsersService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
-    const existing = await this.userRepository.findOne({
+    const usernameTaken = await this.userRepository.findOne({
       where: { username: dto.username },
       withDeleted: true,
     });
-
-    if (existing) {
+    if (usernameTaken) {
       throw new ConflictException(`Username "${dto.username}" is already taken`);
+    }
+
+    if (dto.email) {
+      const emailTaken = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (emailTaken) throw new ConflictException('Email already registered');
     }
 
     const hashed = await bcrypt.hash(dto.password, 10);
@@ -52,7 +56,9 @@ export class UsersService {
     const { page, limit, search, role, isActive } = query;
     const skip = getSkip(page, limit);
 
-    const qb = this.userRepository.createQueryBuilder('user');
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.deletedAt IS NULL');
 
     if (search) {
       qb.andWhere(
@@ -90,9 +96,12 @@ export class UsersService {
         where: { username: dto.username },
         withDeleted: true,
       });
-      if (taken) {
-        throw new ConflictException(`Username "${dto.username}" is already taken`);
-      }
+      if (taken) throw new ConflictException(`Username "${dto.username}" is already taken`);
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const taken = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (taken) throw new ConflictException('Email already registered');
     }
 
     const updates: Partial<UserEntity> = { ...dto };
