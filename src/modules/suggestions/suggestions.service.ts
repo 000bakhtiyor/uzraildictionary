@@ -9,7 +9,10 @@ import { QuerySuggestionsDto } from './dto/query-suggestions.dto';
 import { SuggestionResponseDto } from './dto/suggestion-response.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { paginate, getSkip } from '../../common/utils/pagination.util';
-import { NotFoundException } from '../../common/exceptions/base.exception';
+import {
+  BadRequestException,
+  NotFoundException,
+} from '../../common/exceptions/base.exception';
 import { SuggestionStatus } from '../../common/enums/suggestion-status.enum';
 
 @Injectable()
@@ -22,7 +25,7 @@ export class SuggestionsService {
   async create(dto: CreateSuggestionDto, userId?: string): Promise<SuggestionResponseDto> {
     const saved = await this.repo.save(
       this.repo.create({
-        termName: dto.termName ?? null,
+        termName: dto.termName,
         definition: dto.definition,
         categoryId: dto.categoryId ?? null,
         userId: userId ?? null,
@@ -47,9 +50,35 @@ export class SuggestionsService {
     return paginate(items.map((s) => this.toResponse(s)), total, page, limit);
   }
 
+  async findOne(id: string): Promise<SuggestionResponseDto> {
+    const suggestion = await this.repo.findOne({ where: { id } });
+    if (!suggestion) throw new NotFoundException('Suggestion');
+    return this.toResponse(suggestion);
+  }
+
+  async findMine(userId: string, query: QuerySuggestionsDto): Promise<PaginatedResponseDto<SuggestionResponseDto>> {
+    const { page, limit, status } = query;
+    const skip = getSkip(page, limit);
+
+    const qb = this.repo.createQueryBuilder('s')
+      .where('s.userId = :userId', { userId })
+      .orderBy('s.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (status) qb.andWhere('s.status = :status', { status });
+
+    const [items, total] = await qb.getManyAndCount();
+    return paginate(items.map((s) => this.toResponse(s)), total, page, limit);
+  }
+
   async update(id: string, dto: UpdateSuggestionDto): Promise<SuggestionResponseDto> {
     const suggestion = await this.repo.findOne({ where: { id } });
     if (!suggestion) throw new NotFoundException('Suggestion');
+
+    if (suggestion.status === SuggestionStatus.REJECTED) {
+      throw new BadRequestException('Rejected suggestions cannot be edited');
+    }
 
     if (dto.termName !== undefined) suggestion.termName = dto.termName;
     if (dto.definition !== undefined) suggestion.definition = dto.definition;

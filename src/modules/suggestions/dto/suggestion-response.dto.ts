@@ -3,7 +3,7 @@ import { SuggestionStatus } from '../../../common/enums/suggestion-status.enum';
 
 export class SuggestionResponseDto {
   @ApiProperty() id: string;
-  @ApiPropertyOptional() termName: string | null;
+  @ApiProperty() termName: string;
   @ApiProperty() definition: string;
   @ApiPropertyOptional() categoryId: string | null;
   @ApiPropertyOptional() userId: string | null;

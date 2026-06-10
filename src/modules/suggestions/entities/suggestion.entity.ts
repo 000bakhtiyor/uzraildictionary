@@ -12,8 +12,8 @@ export class SuggestionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  termName: string | null;
+  @Column({ type: 'varchar' })
+  termName: string;
 
   @Column({ type: 'text' })
   definition: string;

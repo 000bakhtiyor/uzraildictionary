@@ -44,6 +44,17 @@ export class SuggestionsController {
     return this.suggestionsService.create(dto, user?.sub);
   }
 
+  @Get('my')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: "List authenticated user's own suggestions" })
+  @ApiResponse({ status: 200 })
+  findMine(
+    @Query() query: QuerySuggestionsDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<PaginatedResponseDto<SuggestionResponseDto>> {
+    return this.suggestionsService.findMine(user.sub, query);
+  }
+
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth('access-token')
@@ -53,6 +64,15 @@ export class SuggestionsController {
     @Query() query: QuerySuggestionsDto,
   ): Promise<PaginatedResponseDto<SuggestionResponseDto>> {
     return this.suggestionsService.findAll(query);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get single suggestion (ADMIN only)' })
+  @ApiResponse({ status: 200, type: SuggestionResponseDto })
+  findOne(@Param('id') id: string): Promise<SuggestionResponseDto> {
+    return this.suggestionsService.findOne(id);
   }
 
   @Patch(':id')
