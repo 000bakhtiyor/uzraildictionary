@@ -14,7 +14,16 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 
+export const SEARCHABLE_LANGS = ['uz', 'ru', 'en', 'kk', 'uzCyrl'] as const;
+export type SearchLang = (typeof SEARCHABLE_LANGS)[number];
+
 export class TermQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ description: 'Search query (FTS)', example: 'lokomotiv' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  q?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
@@ -24,10 +33,15 @@ export class TermQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   tag?: string;
-}
 
-export const SEARCHABLE_LANGS = ['uz', 'ru', 'en', 'kk', 'uzCyrl'] as const;
-export type SearchLang = (typeof SEARCHABLE_LANGS)[number];
+  @ApiPropertyOptional({
+    enum: SEARCHABLE_LANGS,
+    description: 'Language to search in (only with q). Omit to search all.',
+  })
+  @IsOptional()
+  @IsIn(SEARCHABLE_LANGS)
+  lang?: SearchLang;
+}
 
 export class TermSearchQueryDto {
   @ApiProperty({ description: 'Search query (min 1 character)', example: 'lokomotiv' })

@@ -76,7 +76,7 @@ export class TermsService {
     query: TermQueryDto,
     onlyActive = true,
   ): Promise<PaginatedResponseDto<TermResponseDto>> {
-    const { page, limit, categoryId, tag } = query;
+    const { page, limit, categoryId, tag, q, lang } = query;
     const skip = getSkip(page, limit);
 
     const qb = this.termRepository
@@ -89,7 +89,28 @@ export class TermsService {
     if (categoryId) qb.andWhere('term.categoryId = :categoryId', { categoryId });
     if (tag) qb.andWhere(':tag = ANY(term.tags)', { tag: tag.toLowerCase().trim() });
 
-    qb.orderBy('term.createdAt', 'DESC');
+    if (q) {
+      if (lang) {
+        const col = safeJsonbKey(lang);
+        const dict = FTS_DICT[lang];
+        qb.andWhere(
+          `to_tsvector('${dict}', COALESCE(term.term->>'${col}', '')) @@ plainto_tsquery('${dict}', :ftsQ)`,
+          { ftsQ: q },
+        );
+        qb.orderBy(
+          `ts_rank(to_tsvector('${dict}', COALESCE(term.term->>'${col}', '')), plainto_tsquery('${dict}', :rankQ))`,
+          'DESC',
+        );
+        qb.setParameter('rankQ', q);
+      } else {
+        const vec = buildTsvecExpr();
+        qb.andWhere(`${vec} @@ plainto_tsquery('simple', :ftsQ)`, { ftsQ: q });
+        qb.orderBy(`ts_rank(${vec}, plainto_tsquery('simple', :rankQ))`, 'DESC');
+        qb.setParameter('rankQ', q);
+      }
+    } else {
+      qb.orderBy('term.createdAt', 'DESC');
+    }
 
     const [terms, total] = await qb.getManyAndCount();
     return paginate(TermMapper.toResponseList(terms), total, page, limit);
