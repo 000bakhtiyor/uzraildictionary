@@ -65,6 +65,16 @@ export class SuggestionsController {
     return this.suggestionsService.getStats();
   }
 
+  @Get('pending-count')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Pending suggestion count for notifications (ADMIN only)' })
+  @ApiResponse({ status: 200, schema: { example: { count: 7 } } })
+  async getPendingCount(): Promise<{ count: number }> {
+    const stats = await this.suggestionsService.getStats();
+    return { count: stats.pending };
+  }
+
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth('access-token')

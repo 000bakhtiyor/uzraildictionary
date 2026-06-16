@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SuggestionEntity } from './entities/suggestion.entity';
+import { TermEntity } from '../terms/entities/term.entity';
 import { CreateSuggestionDto } from './dto/create-suggestion.dto';
 import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
 import { ReviewSuggestionDto } from './dto/review-suggestion.dto';
@@ -12,6 +13,7 @@ import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { paginate, getSkip } from '../../common/utils/pagination.util';
 import {
   BadRequestException,
+  ConflictException,
   NotFoundException,
 } from '../../common/exceptions/base.exception';
 import { SuggestionStatus } from '../../common/enums/suggestion-status.enum';
@@ -21,9 +23,25 @@ export class SuggestionsService {
   constructor(
     @InjectRepository(SuggestionEntity)
     private readonly repo: Repository<SuggestionEntity>,
+    @InjectRepository(TermEntity)
+    private readonly termRepo: Repository<TermEntity>,
   ) {}
 
   async create(dto: CreateSuggestionDto, userId?: string): Promise<SuggestionResponseDto> {
+    const existing = await this.termRepo
+      .createQueryBuilder('t')
+      .where(`t.term->>'uz'     ILIKE :name`, { name: dto.termName })
+      .orWhere(`t.term->>'ru'     ILIKE :name`)
+      .orWhere(`t.term->>'en'     ILIKE :name`)
+      .orWhere(`t.term->>'kk'     ILIKE :name`)
+      .orWhere(`t.term->>'uzCyrl' ILIKE :name`)
+      .andWhere('t.isActive = true')
+      .getOne();
+
+    if (existing) {
+      throw new ConflictException(`Term "${dto.termName}" already exists in the dictionary`);
+    }
+
     const saved = await this.repo.save(
       this.repo.create({
         termName: dto.termName,
