@@ -7,6 +7,7 @@ import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
 import { ReviewSuggestionDto } from './dto/review-suggestion.dto';
 import { QuerySuggestionsDto } from './dto/query-suggestions.dto';
 import { SuggestionResponseDto } from './dto/suggestion-response.dto';
+import { SuggestionStatsDto } from './dto/suggestion-stats.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { paginate, getSkip } from '../../common/utils/pagination.util';
 import {
@@ -33,6 +34,23 @@ export class SuggestionsService {
       }),
     );
     return this.toResponse(saved);
+  }
+
+  async getStats(): Promise<SuggestionStatsDto> {
+    const rows = await this.repo
+      .createQueryBuilder('s')
+      .select('s.status', 'status')
+      .addSelect('COUNT(s.id)', 'count')
+      .groupBy('s.status')
+      .getRawMany<{ status: SuggestionStatus; count: string }>();
+
+    const map = Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
+    return {
+      pending: map[SuggestionStatus.PENDING] ?? 0,
+      approved: map[SuggestionStatus.APPROVED] ?? 0,
+      rejected: map[SuggestionStatus.REJECTED] ?? 0,
+      total: rows.reduce((sum, r) => sum + Number(r.count), 0),
+    };
   }
 
   async findAll(query: QuerySuggestionsDto): Promise<PaginatedResponseDto<SuggestionResponseDto>> {

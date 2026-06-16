@@ -24,6 +24,7 @@ import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
 import { ReviewSuggestionDto } from './dto/review-suggestion.dto';
 import { QuerySuggestionsDto } from './dto/query-suggestions.dto';
 import { SuggestionResponseDto } from './dto/suggestion-response.dto';
+import { SuggestionStatsDto } from './dto/suggestion-stats.dto';
 
 @ApiTags('Suggestions')
 @Controller('suggestions')
@@ -53,6 +54,15 @@ export class SuggestionsController {
     @CurrentUser() user: JwtPayload,
   ): Promise<PaginatedResponseDto<SuggestionResponseDto>> {
     return this.suggestionsService.findMine(user.sub, query);
+  }
+
+  @Get('stats')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Count suggestions by status (ADMIN only)' })
+  @ApiResponse({ status: 200, type: SuggestionStatsDto })
+  getStats(): Promise<SuggestionStatsDto> {
+    return this.suggestionsService.getStats();
   }
 
   @Get()
