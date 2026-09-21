@@ -22,15 +22,21 @@ export class AdminService {
   ) {}
 
   async getStats(): Promise<StatsResponseDto> {
-    const [totalUsers, activeUsers, totalCategories, activeCategories, totalTerms, activeTerms] =
-      await Promise.all([
-        this.userRepository.count(),
-        this.userRepository.count({ where: { isActive: true } }),
-        this.categoryRepository.count(),
-        this.categoryRepository.count({ where: { isActive: true } }),
-        this.termRepository.count(),
-        this.termRepository.count({ where: { isActive: true } }),
-      ]);
+    const [
+      totalUsers,
+      activeUsers,
+      totalCategories,
+      activeCategories,
+      totalTerms,
+      activeTerms,
+    ] = await Promise.all([
+      this.userRepository.count(),
+      this.userRepository.count({ where: { isActive: true } }),
+      this.categoryRepository.count(),
+      this.categoryRepository.count({ where: { isActive: true } }),
+      this.termRepository.count(),
+      this.termRepository.count({ where: { isActive: true } }),
+    ]);
 
     return {
       users: { total: totalUsers, active: activeUsers },
@@ -49,8 +55,8 @@ export class AdminService {
         const slug = item.slug
           ? generateSlug(item.slug)
           : item.term?.en
-          ? generateSlug(item.term.en)
-          : null;
+            ? generateSlug(item.term.en)
+            : null;
 
         const term = this.termRepository.create({
           ...item,
@@ -82,7 +88,21 @@ export class AdminService {
 }
 
 export function termsToCSV(terms: TermEntity[]): string {
-  const headers = ['id', 'slug', 'uz', 'ru', 'en', 'kk', 'uzCyrl', 'definition_en', 'category', 'tags', 'isAbbreviation', 'isActive', 'viewCount'];
+  const headers = [
+    'id',
+    'slug',
+    'uz',
+    'ru',
+    'en',
+    'kk',
+    'uzCyrl',
+    'definition_en',
+    'category',
+    'tags',
+    'isAbbreviation',
+    'isActive',
+    'viewCount',
+  ];
   const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
   const rows = terms.map((t) =>

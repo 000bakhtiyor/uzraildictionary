@@ -19,13 +19,16 @@ import { envValidationSchema } from './config/env.validation';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import { TranslateModule } from './modules/translate/translate.module';
+import tilmochConfig from './config/tilmoch.config';
 
 @Module({
   imports: [
+    TranslateModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: envValidationSchema,
-      load: [appConfig, databaseConfig, jwtConfig],
+      load: [appConfig, databaseConfig, jwtConfig, tilmochConfig],
     }),
     CacheModule.register({ isGlobal: true, ttl: 5 * 60 * 1000, max: 200 }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),

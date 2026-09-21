@@ -22,4 +22,11 @@ export const envValidationSchema = Joi.object({
   SMTP_USER: Joi.string().required(),
   SMTP_PASS: Joi.string().required(),
   SMTP_FROM: Joi.string().required(),
+
+  //miro
+  TILMOCH_API_KEY: Joi.string().required(),
+  TILMOCH_API_URL: Joi.string().default(
+    'https://websocket.tahrirchi.uz/translate-v2',
+  ),
+  TILMOCH_MODEL: Joi.string().valid('tilmoch', 'sayqalchi').default('tilmoch'),
 });
